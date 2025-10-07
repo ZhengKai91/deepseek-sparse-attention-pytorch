@@ -177,7 +177,7 @@ class Qwen3DSAAttention(Qwen3Attention):
             index_mask += mask
         index_mask = index_mask.unsqueeze(1)
         if attention_mask is not None:
-            index_mask = attention_mask + index_maskß
+            index_mask = attention_mask + index_mask
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
