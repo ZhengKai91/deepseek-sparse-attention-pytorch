@@ -31,7 +31,6 @@ from transformers.processing_utils import Unpack
 from transformers.utils import TransformersKwargs
 from transformers.utils.deprecation import deprecate_kwarg
 
-# 本项目自定义配置
 from .configuration_qwen3_dsa import Qwen3DSAConfig
 
 
@@ -100,7 +99,6 @@ class Indexer(nn.Module):
 
         index_score = fp16_index(q, weights, k)  # (bsz, seqlen, seqlen)
 
-        # when use cache, mask may not seqlen, seqlen, to fix
         seqlen_k = index_score.shape[-1]
         mask = (
             torch.full((seqlen, seqlen_k), float("-inf"), device=x.device).triu_(1)
@@ -116,13 +114,14 @@ class Indexer(nn.Module):
         # topk_indices_ = topk_indices.clone()
         # dist.broadcast(topk_indices_, src=0)
         # assert torch.all(topk_indices == topk_indices_), f"{topk_indices=} {topk_indices_=}"
-        return topk_indices
+        return topk_indices, index_score
 
 
 class Qwen3DSAAttention(Qwen3Attention):
     def __init__(self, config: Qwen3DSAConfig, layer_idx: int):
         super().__init__(config, layer_idx)
         self.indexer = Indexer(config)
+        self.index_loss = 0
 
     @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def forward(
@@ -163,44 +162,52 @@ class Qwen3DSAAttention(Qwen3Attention):
             )
             start_pos, end_pos = key_states.shape[-2] - seqlen, key_states.shape[-2]
 
-        topk_indices = self.indexer(hidden_states, start_pos, end_pos, **kwargs)
+        topk_indices, index_score = self.indexer(hidden_states, start_pos, end_pos, **kwargs)
         mask_shape = (*input_shape, key_states.shape[-2])
-        mask = (
-            torch.full(mask_shape, float("-inf"), device=hidden_states.device).triu_(1)
-            if mask_shape[-2] > 1
-            else None
-        )
-        index_mask = torch.full(
-            mask_shape, float("-inf"), device=hidden_states.device
-        ).scatter_(-1, topk_indices, 0)
-        if mask is not None:
-            index_mask += mask
-        index_mask = index_mask.unsqueeze(1)
+        index_mask = torch.zeros(mask_shape, dtype=torch.bool, device=hidden_states.device)
+        index_mask =  index_mask.scatter_(-1, topk_indices, True) 
+        
+        mask = None
+        if attention_mask is None:
+            causal_mask = (
+                torch.ones(mask_shape, dtype=torch.bool, device=hidden_states.device).tril_(0)  # 下三角为True
+                if mask_shape[-2] > 1
+                else None
+            )
+            index_mask = causal_mask & index_mask if causal_mask is not None else index_mask
+
+        index_mask = index_mask.unsqueeze(1) #(bsz, 1, seqlen_q, seqlen_k)
         if attention_mask is not None:
-            index_mask = attention_mask + index_mask
+            index_mask =  index_mask & attention_mask
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
             attention_interface = ALL_ATTENTION_FUNCTIONS[
                 self.config._attn_implementation
             ]
-
+        
         # is_causal if infer by:  query.shape[2] > 1 and attention_mask is None and getattr(module, "is_causal", True)
         attn_output, attn_weights = attention_interface(
             self,
             query_states,
             key_states,
             value_states,
-            index_mask,  # attention_mask,
+            attention_mask,
             dropout=0.0 if not self.training else self.attention_dropout,
             scaling=self.scaling,
             sliding_window=self.sliding_window,  # diff with Llama
             **kwargs,
         )
 
+        if self.training:
+            self.index_loss = self.compute_index_loss(index_score, attn_weights, index_mask)
+
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
+    
+    def compute_index_loss(self, index_score, attn_weights, index_mask):
+        return 0
 
 
 class Qwen3DSAModel(Qwen3Model):

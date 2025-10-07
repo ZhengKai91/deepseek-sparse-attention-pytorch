@@ -8,11 +8,11 @@ if __name__ == "__main__":
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = Qwen3DSAForCausalLM.from_pretrained(
-        model_name, torch_dtype="auto", device_map="auto"
+        model_name, dtype="auto", device_map="auto"
     )
     print(f"✅ Model loaded successfully!")
 
-    prompt = "Give me a short introduction to deepseek sparse attention."
+    prompt = "Give me a short introduction to sparse attention."
     messages = [{"role": "user", "content": prompt}]
     text = tokenizer.apply_chat_template(
         messages,
