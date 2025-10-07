@@ -4,7 +4,7 @@ from models.modeling_qwen3_dsa import Qwen3DSAForCausalLM
 
 
 if __name__=="__main__":
-  model_name = "Qwen3/Qwen3-4B"  
+  model_name = "kaizheng9105/Qwen3-4B-Instruct-2507-DSA"  
 
   tokenizer = AutoTokenizer.from_pretrained(model_name)
   model = Qwen3DSAForCausalLM.from_pretrained(
