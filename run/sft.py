@@ -1,10 +1,6 @@
-import torch
-from transformers import AutoConfig, AutoTokenizer, Qwen3ForCausalLM
+from transformers import AutoTokenizer
 
-from models.modeling_qwen3_dsa import (
-    Qwen3DSAForCausalLM,
-    load_qwen3_dsa_from_pretrained,
-)
+from models.modeling_qwen3_dsa import load_qwen3_dsa_from_pretrained
 
 if __name__ == "__main__":
     base_model_name_or_path = "Qwen/Qwen3-4B-Instruct-2507"

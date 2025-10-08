@@ -1,4 +1,3 @@
-import torch
 from transformers import AutoTokenizer
 
 from models.modeling_qwen3_dsa import Qwen3DSAForCausalLM
@@ -10,7 +9,7 @@ if __name__ == "__main__":
     model = Qwen3DSAForCausalLM.from_pretrained(
         model_name, dtype="auto", device_map="auto"
     )
-    print(f"✅ Model loaded successfully!")
+    print("✅ Model loaded successfully!")
 
     prompt = "Give me a short introduction to sparse attention."
     messages = [{"role": "user", "content": prompt}]
