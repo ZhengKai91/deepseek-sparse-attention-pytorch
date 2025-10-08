@@ -40,7 +40,7 @@ Thanks to the DeepSeek Team for the V3.2 architecture innovations and original s
 If you find this repo useful, please cite:
 
 ```bibtex
-@misc{deepseek-sparse-pytorch,
+@misc{deepseek-sparse-attention-pytorch,
   title={PyTorch DeepSeek Sparse Attention (DSA) training & inference},
   author={Kai Zheng},
   year={2025},

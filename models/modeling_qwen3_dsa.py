@@ -109,7 +109,7 @@ class Indexer(nn.Module):
             index_score += mask
 
         topk_indices = index_score.topk(
-            min(self.index_topk, index_score.shape[-1]), dim=-1
+            min(self.index_topk, end_pos), dim=-1
         )[1]
         # topk_indices_ = topk_indices.clone()
         # dist.broadcast(topk_indices_, src=0)
@@ -166,19 +166,16 @@ class Qwen3DSAAttention(Qwen3Attention):
         mask_shape = (*input_shape, key_states.shape[-2])
         index_mask = torch.zeros(mask_shape, dtype=torch.bool, device=hidden_states.device)
         index_mask =  index_mask.scatter_(-1, topk_indices, True) 
-        
-        mask = None
-        if attention_mask is None:
-            causal_mask = (
-                torch.ones(mask_shape, dtype=torch.bool, device=hidden_states.device).tril_(0)  # 下三角为True
-                if mask_shape[-2] > 1
-                else None
-            )
-            index_mask = causal_mask & index_mask if causal_mask is not None else index_mask
-
         index_mask = index_mask.unsqueeze(1) #(bsz, 1, seqlen_q, seqlen_k)
-        if attention_mask is not None:
-            index_mask =  index_mask & attention_mask
+        
+        is_causal = query_states.shape[2] > 1 and attention_mask is None and getattr(self, "is_causal", True)
+        if is_causal:
+            if attention_mask is None:
+                causal_mask = torch.ones(mask_shape, dtype=torch.bool, device=hidden_states.device).tril_(0) 
+                causal_mask = causal_mask.unsqueeze(1) #(bsz, 1, seqlen_q, seqlen_k)
+            else:
+                causal_mask = attention_mask 
+            index_mask = index_mask & causal_mask
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
@@ -192,7 +189,7 @@ class Qwen3DSAAttention(Qwen3Attention):
             query_states,
             key_states,
             value_states,
-            attention_mask,
+            index_mask,
             dropout=0.0 if not self.training else self.attention_dropout,
             scaling=self.scaling,
             sliding_window=self.sliding_window,  # diff with Llama
