@@ -82,7 +82,7 @@ class Indexer(nn.Module):
         q = self.q_norm(self.q_proj(x).view(hidden_shape)).transpose(1, 2)
         k = self.k_norm(self.k_proj(x).view(hidden_shape)).transpose(1, 2)
 
-        position_embeddings = kwargs["sparse_position_embeddings"]
+        position_embeddings = kwargs["position_embeddings"]
         cos, sin = position_embeddings
         q, k = apply_rotary_pos_emb(q, k, cos, sin)  # (bsz, n_heads, seqlen, head_dim)
         q = q.transpose(1, 2)  # (bsz, seqlen, n_heads, head_dim)
@@ -158,7 +158,7 @@ class Qwen3DSAAttention(Qwen3Attention):
             start_pos, end_pos = key_states.shape[-2] - seqlen, key_states.shape[-2]
 
         topk_indices, index_score = self.indexer(
-            hidden_states, start_pos, end_pos, **kwargs
+            hidden_states, start_pos, end_pos, position_embeddings=position_embeddings, **kwargs
         )
 
         mask_shape = (*input_shape, key_states.shape[-2])
@@ -264,10 +264,6 @@ class Qwen3DSAAttention(Qwen3Attention):
 class Qwen3DSAModel(Qwen3Model):
     def __init__(self, config: Qwen3DSAConfig):
         super().__init__(config)
-        ori_head_dim = config.head_dim
-        config.head_dim = config.index_head_dim
-        self.sparse_rotary_emb = Qwen3RotaryEmbedding(config)
-        config.head_dim = ori_head_dim
 
         for layer in self.layers:
             old_attn = layer.self_attn
@@ -333,7 +329,6 @@ class Qwen3DSAModel(Qwen3Model):
 
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
-        sparse_position_embeddings = self.sparse_rotary_emb(hidden_states, position_ids)
         for decoder_layer in self.layers[: self.config.num_hidden_layers]:
             hidden_states = decoder_layer(
                 hidden_states,
@@ -343,7 +338,6 @@ class Qwen3DSAModel(Qwen3Model):
                 use_cache=use_cache,
                 cache_position=cache_position,
                 position_embeddings=position_embeddings,
-                sparse_position_embeddings=sparse_position_embeddings,
                 **kwargs,
             )
 
