@@ -33,7 +33,6 @@ from transformers.utils.deprecation import deprecate_kwarg
 
 from .configuration_qwen3_dsa import Qwen3DSAConfig
 
-
 def fp16_index(q, weights, k):
     # q: (bsz, seqlen, n_heads, head_dim)
     # weights: (bsz, seq_len, n_heads, 1)
@@ -419,29 +418,3 @@ class Qwen3DSAForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
         )
 
 
-def load_qwen3_dsa_from_pretrained(model_name_or_path, config=None, **kwargs):
-    if config is None:
-        base_config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
-        config = Qwen3DSAConfig.from_dict(base_config.to_dict())
-    import pdb; pdb.set_trace()
-    base_model = Qwen3ForCausalLM.from_pretrained(model_name_or_path, **kwargs)
-    custom_model = Qwen3DSAForCausalLM(config)
-    custom_model.load_state_dict(base_model.state_dict(), strict=False)
-
-    assert torch.allclose(
-        custom_model.model.embed_tokens.weight,
-        base_model.model.embed_tokens.weight,
-        atol=1e-6,
-    )
-    for i in range(min(2, len(base_model.model.layers))):
-        assert torch.allclose(
-            base_model.model.layers[i].self_attn.q_proj.weight,
-            custom_model.model.layers[i].self_attn.q_proj.weight,
-            atol=1e-6,
-        )
-
-    del base_model
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
-    return custom_model

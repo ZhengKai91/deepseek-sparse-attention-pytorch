@@ -3,9 +3,9 @@ RECIPE_NAME=DSA
 TRAINING_LENGTH=32768 
 WANDB_NAME=${RECIPE_NAME}_${TRAINING_LENGTH}
 
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0,1
 
-torchrun  --nproc_per_node=1 \
+torchrun  --nproc_per_node=2 \
         -m training.train  \
         --model_name_or_path "Qwen/Qwen3-4B-Instruct-2507" \
         --dataset_name_or_path Leooyii/Slimpajama_downsample_32k_1B \

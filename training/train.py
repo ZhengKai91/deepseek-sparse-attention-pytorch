@@ -3,6 +3,7 @@ import math
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Dict, Optional, Sequence
+import json
 
 import torch
 import transformers
@@ -13,7 +14,7 @@ import wandb
 from transformers import AutoTokenizer
 from datasets import load_dataset, load_from_disk
 
-from models.modeling_qwen3_dsa import load_qwen3_dsa_from_pretrained
+from models.model_loader import load_qwen3_dsa_from_pretrained
 
 
 @dataclass
@@ -40,6 +41,22 @@ class TrainingArguments(transformers.TrainingArguments):
         metadata={"help": "Whether use flash attention for training."},
     )
 
+def is_deepspeed_zero3(training_args: TrainingArguments) -> bool:
+    if training_args.deepspeed is None:
+        return False
+
+    # 如果deepspeed是字符串，则从文件读取
+    if isinstance(training_args.deepspeed, str):
+        with open(training_args.deepspeed, 'r') as f:
+            ds_config = json.load(f)
+    else:
+        ds_config = training_args.deepspeed
+
+    zero_config = ds_config.get('zero_optimization', {})
+    if zero_config.get('stage') == 3:
+        return True
+    return False
+
 def train():
     parser = transformers.HfArgumentParser((ModelArguments, TrainingArguments))
     model_args, training_args = parser.parse_args_into_dataclasses()
@@ -52,17 +69,24 @@ def train():
         padding_side="right",
         use_fast=True,
     )
+    #print('is_deepspeed_zero3:', is_deepspeed_zero3(training_args))
     model = load_qwen3_dsa_from_pretrained(
         base_model_name_or_path,
+        is_ds_zero3=is_deepspeed_zero3(training_args),
         #use_flash_attention_2=training_args.use_flash_attn,
-        #torch_dtype=torch.bfloat16,
+        torch_dtype=torch.bfloat16,
     )
      
     rank = int(os.environ.get('RANK', -1))
     if rank > 0:
         barrier()
 
-    dataset = load_dataset('json',data_files=model_args.dataset_name_or_path,)
+    dataset_name_or_path = model_args.dataset_name_or_path
+    if os.path.isfile(dataset_name_or_path):
+        datasaet = load_dataset('json',data_files=model_args.dataset_name_or_path)
+    else:
+        dataset = laod_dataset(dataset_name_or_path)
+
     
     if rank == 0:
         barrier()
