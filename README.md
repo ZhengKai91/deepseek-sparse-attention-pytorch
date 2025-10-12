@@ -25,6 +25,28 @@ python demo.py          # run a minimal sparse-attention forward pass
 ```
 demo.py provide a  minimal deepseek-sparse-attention generate content based on given inputs
 
+## Training
+
+One-liner:
+```bash
+bash scripts/sft.sh
+```
+The sft.sh script provides an out-of-box DeepSpeed-ZeRO3 training example:
+```bash
+torchrun --nproc_per_node=2 \
+  -m training.train \
+  --model_name_or_path "Qwen/Qwen3-4B-Instruct-2507" \
+  --dataset_name_or_path Leooyii/Slimpajama_downsample_32k_1B \
+  --bf16 True \
+  --output_dir ckpts/${RECIPE_NAME}/${WANDB_NAME} \
+  --model_max_length 32768 \
+  --use_flash_attn True \
+  --num_train_epochs 1 \
+  --per_device_train_batch_size 1 \
+  --gradient_accumulation_steps 4 \
+  --deepspeed configs/stage3_offload.json
+```
+
 ## TODO List
 
 - [ ] Training scripts (single-GPU & DDP)
