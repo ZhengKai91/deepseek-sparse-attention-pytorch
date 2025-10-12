@@ -423,7 +423,7 @@ def load_qwen3_dsa_from_pretrained(model_name_or_path, config=None, **kwargs):
     if config is None:
         base_config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
         config = Qwen3DSAConfig.from_dict(base_config.to_dict())
-
+    import pdb; pdb.set_trace()
     base_model = Qwen3ForCausalLM.from_pretrained(model_name_or_path, **kwargs)
     custom_model = Qwen3DSAForCausalLM(config)
     custom_model.load_state_dict(base_model.state_dict(), strict=False)

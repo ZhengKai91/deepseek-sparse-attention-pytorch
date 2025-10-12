@@ -1,0 +1,14 @@
+[project]
+name = "deepseek-sparse-attention-pytorch"
+version = "0.1.0"
+description = "PyTorch DeepSeek Sparse Attention (DSA) training & inference"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "accelerate>=1.10.1",
+    "datasets>=4.2.0",
+    "deepspeed>=0.18.0",
+    "torch>=2.8.0",
+    "transformers>=4.57.0",
+    "wandb>=0.22.2",
+]

@@ -9,6 +9,6 @@ if __name__ == "__main__":
 
     # trainner.train(custom_model, tokenizer)
 
-    save_path = "/root/data/Qwen3-4B-Instruct-2507-DSA"
-    custom_model.save_pretrained(save_path)
-    tokenizer.save_pretrained(save_path)
+    # save_path = "/root/data/Qwen3-4B-Instruct-2507-DSA"
+    # custom_model.save_pretrained(save_path)
+    # tokenizer.save_pretrained(save_path)
