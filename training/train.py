@@ -85,7 +85,7 @@ def train():
     if os.path.isfile(dataset_name_or_path):
         datasaet = load_dataset('json',data_files=model_args.dataset_name_or_path)
     else:
-        dataset = laod_dataset(dataset_name_or_path)
+        dataset = load_dataset(dataset_name_or_path)
 
     
     if rank == 0:
